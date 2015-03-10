@@ -1,0 +1,411 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mclib.gff &mdash; McIntyre Library 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="McIntyre Library 0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">McIntyre Library 0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for mclib.gff</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">os.path</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">gffutils</span>
+
+<span class="k">class</span> <span class="nc">_Anno</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; General class for handling annotation database created from GFFUtils </span>
+<span class="sd">    </span>
+<span class="sd">    Arguments:</span>
+<span class="sd">    filename (str) = filename of your gff/gtf file</span>
+<span class="sd">    filetype {&#39;gff&#39;, &#39;gtf&#39;} = file extension</span>
+<span class="sd">    force (bool) = if True force the recreation of the database</span>
+<span class="sd">    merge {&#39;merge&#39;, &#39;create_unique&#39;, &#39;error&#39;, &#39;warning&#39;} = passed to the</span>
+<span class="sd">    merge_strategey option in gffutils.create_db()</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">    db = GFFUtils database</span>
+<span class="sd">    _featureKey = a dictionary to convert between feature keywords in the GFFUtils database</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">filetype</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="c"># Create database name</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">filetype</span><span class="p">:</span>
+            <span class="n">dbname</span> <span class="o">=</span> <span class="n">filename</span> <span class="o">+</span> <span class="s">&#39;.db&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&quot;Please provide a {0} file.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">filetype</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span>
+
+        <span class="c"># Create or connect to GFFUtils database</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">gffutils</span><span class="o">.</span><span class="n">FeatureDB</span><span class="p">(</span><span class="n">dbname</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Building the GFF database&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">gffutils</span><span class="o">.</span><span class="n">create_db</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">dbname</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">,</span> <span class="n">merge_strategy</span><span class="o">=</span><span class="n">merge</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Forcing the re-building the GFF database&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">gffutils</span><span class="o">.</span><span class="n">create_db</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">dbname</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">,</span> <span class="n">merge_strategy</span><span class="o">=</span><span class="n">merge</span><span class="p">)</span>
+
+        <span class="c"># Create a general feature key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_featureKey</span> <span class="o">=</span> <span class="p">{</span> <span class="s">&#39;mRNA&#39;</span><span class="p">:</span> <span class="s">&#39;mRNA&#39;</span><span class="p">,</span>
+                            <span class="s">&#39;exon&#39;</span><span class="p">:</span> <span class="s">&#39;exon&#39;</span><span class="p">,</span>
+                            <span class="s">&#39;intron&#39;</span><span class="p">:</span> <span class="s">&#39;intron&#39;</span><span class="p">,</span>
+                            <span class="s">&#39;CDS&#39;</span><span class="p">:</span> <span class="s">&#39;CDS&#39;</span><span class="p">,</span>
+                            <span class="s">&#39;3UTR&#39;</span><span class="p">:</span> <span class="s">&#39;3UTR&#39;</span><span class="p">,</span>
+                            <span class="s">&#39;5UTR&#39;</span><span class="p">:</span> <span class="s">&#39;5UTR&#39;</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_get_annotation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">childtype</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Method that returns a list of children given some parent &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">children</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">featuretype</span><span class="o">=</span><span class="n">childtype</span><span class="p">,</span> <span class="n">order_by</span><span class="o">=</span><span class="s">&#39;start&#39;</span><span class="p">)]</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&quot;Sorry I could not find &quot;</span> <span class="o">+</span> <span class="n">name</span> <span class="o">+</span> <span class="s">&quot; in the database, are you sure it is there?&quot;</span>
+
+    <span class="k">def</span> <span class="nf">get_genes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Return a generator of a list of genes &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">features_of_type</span><span class="p">(</span><span class="s">&#39;gene&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_transcripts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Method that returns a list of transcripts for a given gene. &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_annotation</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_featureKey</span><span class="p">[</span><span class="s">&#39;mRNA&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">get_exons</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Method that returns a list of exons for a given transcript ID &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_annotation</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_featureKey</span><span class="p">[</span><span class="s">&#39;exon&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">get_introns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Method that returns a list of introns for a given transcript ID &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_annotation</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_featureKey</span><span class="p">[</span><span class="s">&#39;intron&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">get_cds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Method that returns a list of CDS for a given transcript ID &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_annotation</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_featureKey</span><span class="p">[</span><span class="s">&#39;CDS&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">get_utrs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Method that returns a list of three prime UTRs and a list of five</span>
+<span class="sd">        prime UTRs for a given transcript ID </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_annotation</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_featureKey</span><span class="p">[</span><span class="s">&#39;3UTR&#39;</span><span class="p">]),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_annotation</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_featureKey</span><span class="p">[</span><span class="s">&#39;5UTR&#39;</span><span class="p">]))</span>
+
+    <span class="k">def</span> <span class="nf">get_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">order_by</span><span class="o">=</span><span class="s">&#39;start&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Method that returns a list of coords for a given feature &quot;&quot;&quot;</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">annotations</span><span class="p">:</span>
+            <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">row</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">end</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">order_by</span> <span class="o">==</span> <span class="s">&#39;start&#39;</span><span class="p">:</span>
+            <span class="n">coords</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">tup</span><span class="p">:</span> <span class="n">tup</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">order_by</span> <span class="o">==</span> <span class="s">&#39;end&#39;</span><span class="p">:</span>
+            <span class="n">coords</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">tup</span><span class="p">:</span> <span class="n">tup</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">coords</span>
+
+    <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">ignore_strand</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Merge overlapping features together.</span>
+<span class="sd">        Based on gffutils merge method.</span>
+
+<span class="sd">        Arguments</span>
+<span class="sd">        ----------</span>
+<span class="sd">        features : iterator of Feature instances</span>
+
+<span class="sd">        ignore_strand (bool) = If True, features on multiple strands will be</span>
+<span class="sd">        merged, and the final strand will be set to &#39;.&#39;.  Otherwise, ValueError</span>
+<span class="sd">        will be raised if trying to merge features on different strands.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c"># Consume iterator up front...</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%d</span><span class="s"> exons&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">features</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">features</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">StopIteration</span>
+
+        <span class="c"># Either set all strands to &#39;+&#39; or check for strand-consistency.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ignore_strand</span><span class="p">:</span>
+            <span class="n">strands</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">strand</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">features</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">strands</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Specify ignore_strand=True to force merging &#39;</span>
+                                 <span class="s">&#39;of multiple strands&#39;</span><span class="p">)</span>
+
+        <span class="c"># Sanity check to make sure all features are from the same chromosome.</span>
+        <span class="n">chroms</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">chrom</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">features</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">chroms</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;Merging multiple chromosomes not &#39;</span>
+                                      <span class="s">&#39;implemented&#39;</span><span class="p">)</span>
+        <span class="n">chrom</span> <span class="o">=</span> <span class="n">chroms</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c"># To start, we create a merged feature of just the first feature.</span>
+        <span class="n">current_merged_start</span> <span class="o">=</span> <span class="n">features</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start</span>
+        <span class="n">current_merged_stop</span> <span class="o">=</span> <span class="n">features</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stop</span>
+        <span class="n">merged_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s">&#39;Name&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="p">]</span>
+        <span class="n">merged_strand</span> <span class="o">=</span> <span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strand</span><span class="p">,</span> <span class="p">]</span>
+
+        <span class="c"># Set up a counter to determine if a feature was merged</span>
+        <span class="n">flagMerge</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c"># We don&#39;t need to check the first one, so start at feature #2.</span>
+        <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">features</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="c"># Does this feature start within the currently merged feature?...</span>
+            <span class="k">if</span> <span class="n">feature</span><span class="o">.</span><span class="n">start</span> <span class="o">&lt;=</span> <span class="n">current_merged_stop</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">flagMerge</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="n">merged_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">feature</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s">&#39;Name&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">merged_strand</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">feature</span><span class="o">.</span><span class="n">strand</span><span class="p">)</span>
+
+                <span class="c"># ...It starts within, so leave current_merged_start where it</span>
+                <span class="c"># is.  Does it extend any farther?</span>
+                <span class="k">if</span> <span class="n">feature</span><span class="o">.</span><span class="n">stop</span> <span class="o">&gt;=</span> <span class="n">current_merged_stop</span><span class="p">:</span>
+                    <span class="c"># Extends further, so set a new stop position</span>
+                    <span class="n">current_merged_stop</span> <span class="o">=</span> <span class="n">feature</span><span class="o">.</span><span class="n">stop</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># If feature.stop &lt; current_merged_stop, it&#39;s completely</span>
+                    <span class="c"># within the previous feature.  Nothing more to do.</span>
+                    <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># The start position is outside the merged feature, so we&#39;re</span>
+                <span class="c"># done with the current merged feature.  Prepare for output...</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">merged_strand</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">strand</span> <span class="o">=</span> <span class="s">&quot;.&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">strand</span> <span class="o">=</span> <span class="n">merged_strand</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                
+                <span class="n">merged_feature</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">seqid</span><span class="o">=</span><span class="n">feature</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span>
+                    <span class="n">source</span><span class="o">=</span><span class="s">&#39;.&#39;</span><span class="p">,</span>
+                    <span class="n">featuretype</span><span class="o">=</span><span class="n">feature</span><span class="o">.</span><span class="n">featuretype</span><span class="p">,</span>
+                    <span class="n">start</span><span class="o">=</span><span class="n">current_merged_start</span><span class="p">,</span>
+                    <span class="n">end</span><span class="o">=</span><span class="n">current_merged_stop</span><span class="p">,</span>
+                    <span class="n">score</span><span class="o">=</span><span class="s">&#39;.&#39;</span><span class="p">,</span>
+                    <span class="n">strand</span><span class="o">=</span><span class="n">strand</span><span class="p">,</span>
+                    <span class="n">frame</span><span class="o">=</span><span class="s">&#39;.&#39;</span><span class="p">,</span>
+                    <span class="n">attributes</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span>
+                    <span class="n">merged</span><span class="o">=</span><span class="n">flagMerge</span><span class="p">,</span>
+                    <span class="n">exonId</span><span class="o">=</span><span class="n">merged_ids</span><span class="p">)</span>
+                <span class="k">yield</span> <span class="n">merged_feature</span>
+
+                <span class="c"># and we start a new one, initializing with this feature&#39;s</span>
+                <span class="c"># start and stop.</span>
+                <span class="n">current_merged_start</span> <span class="o">=</span> <span class="n">feature</span><span class="o">.</span><span class="n">start</span>
+                <span class="n">current_merged_stop</span> <span class="o">=</span> <span class="n">feature</span><span class="o">.</span><span class="n">stop</span>
+                <span class="n">merged_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">feature</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s">&#39;Name&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],]</span>
+                <span class="n">merged_strand</span> <span class="o">=</span> <span class="p">[</span><span class="n">feature</span><span class="o">.</span><span class="n">strand</span><span class="p">,</span> <span class="p">]</span>
+                <span class="n">flagMerge</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c"># need to yield the last one.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">features</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">feature</span> <span class="o">=</span> <span class="n">features</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">merged_feature</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">seqid</span><span class="o">=</span><span class="n">feature</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="s">&#39;.&#39;</span><span class="p">,</span>
+            <span class="n">featuretype</span><span class="o">=</span><span class="n">feature</span><span class="o">.</span><span class="n">featuretype</span><span class="p">,</span>
+            <span class="n">start</span><span class="o">=</span><span class="n">current_merged_start</span><span class="p">,</span>
+            <span class="n">end</span><span class="o">=</span><span class="n">current_merged_stop</span><span class="p">,</span>
+            <span class="n">score</span><span class="o">=</span><span class="s">&#39;.&#39;</span><span class="p">,</span>
+            <span class="n">strand</span><span class="o">=</span><span class="n">strand</span><span class="p">,</span>
+            <span class="n">frame</span><span class="o">=</span><span class="s">&#39;.&#39;</span><span class="p">,</span>
+            <span class="n">attributes</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span>
+            <span class="n">merged</span><span class="o">=</span><span class="n">flagMerge</span><span class="p">,</span>
+            <span class="n">exonId</span><span class="o">=</span><span class="n">merged_ids</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">merged_feature</span>
+
+<div class="viewcode-block" id="FlyGff"><a class="viewcode-back" href="../../mclib.html#mclib.gff.FlyGff">[docs]</a><span class="k">class</span> <span class="nc">FlyGff</span><span class="p">(</span><span class="n">_Anno</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Flybase specific class for handling an annotation database created from</span>
+<span class="sd">    GFFUtils using a FlyBase GFF file. </span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">    filename (str) = filename of your gff/gtf file</span>
+<span class="sd">    force (bool) = if True force the recreation of the database</span>
+<span class="sd">    merge {&#39;merge&#39;, &#39;create_unique&#39;, &#39;error&#39;, &#39;warning&#39;} = passed to the</span>
+<span class="sd">    merge_strategy option in gffutils.create_db()</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">    symbol2fbgn = a dictionary to convert from gene symbol to fbgn</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="s">&#39;merge&#39;</span><span class="p">):</span>
+        <span class="c"># Import initilize _Anno class</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FlyGff</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;gff&#39;</span><span class="p">,</span> <span class="n">force</span><span class="p">,</span> <span class="n">merge</span><span class="p">)</span>
+
+        <span class="c"># Update Feature key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_featureKey</span><span class="p">[</span><span class="s">&#39;3UTR&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;three_prime_UTR&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_featureKey</span><span class="p">[</span><span class="s">&#39;5UTR&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;five_prime_UTR&#39;</span>
+
+        <span class="c"># Create key to go from gene symbol to fbgn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symbol2fbgn</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">features_of_type</span><span class="p">(</span><span class="s">&#39;gene&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">symbol2fbgn</span><span class="p">[</span><span class="n">gene</span><span class="p">[</span><span class="s">&#39;Name&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">gene</span><span class="o">.</span><span class="n">id</span>
+
+<div class="viewcode-block" id="FlyGff.get_transcripts"><a class="viewcode-back" href="../../mclib.html#mclib.gff.FlyGff.get_transcripts">[docs]</a>    <span class="k">def</span> <span class="nf">get_transcripts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Override the get_transcripts method to allow translation of gene</span>
+<span class="sd">        symbol to FBgn. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># If a gene symbol was given look up the FBgn</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol2fbgn</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol2fbgn</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_annotation</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_featureKey</span><span class="p">[</span><span class="s">&#39;mRNA&#39;</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="FlyGff.get_chrom"><a class="viewcode-back" href="../../mclib.html#mclib.gff.FlyGff.get_chrom">[docs]</a>    <span class="k">def</span> <span class="nf">get_chrom</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Return a generator of a list of genes &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">features_of_type</span><span class="p">([</span><span class="s">&#39;chromosome&#39;</span><span class="p">,</span><span class="s">&#39;chromosome_arm&#39;</span><span class="p">])</span>
+</div></div>
+<span class="k">class</span> <span class="nc">_Gene</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; A general class to build a complete gene object with transcript and</span>
+<span class="sd">    exon information.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">    geneName (str) = a gene name</span>
+<span class="sd">    gffObject = a mclib gene object</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">    gene = geneName</span>
+<span class="sd">    db = gffObject</span>
+<span class="sd">    transID = List of transcript ids</span>
+<span class="sd">    transCnt = Number of transcripts</span>
+<span class="sd">    transcript = Dictionary of transcript IDs that contain the following:</span>
+<span class="sd">        exons = List of all exon coords (start, end).</span>
+<span class="sd">        cds = List of all coding sequence coords (start, end).</span>
+<span class="sd">        utr = List of UTR region coordinates [3&#39;UTR coords, 5&#39;UTR coords].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geneName</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">gffObject</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gene</span> <span class="o">=</span> <span class="n">geneName</span>
+
+        <span class="c"># Get gene information </span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene</span> <span class="ow">in</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">symbol2fbgn</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">symbol2fbgn</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">gene</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chrom</span> <span class="o">=</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">db</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">]</span><span class="o">.</span><span class="n">chrom</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">db</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">]</span><span class="o">.</span><span class="n">start</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">db</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">]</span><span class="o">.</span><span class="n">end</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">strand</span> <span class="o">=</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">db</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">]</span><span class="o">.</span><span class="n">strand</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&quot;&quot;&quot;There is something wrong creating your gene. Please check</span>
+<span class="s">            and make sure the geneName you used is in your gffDB. If this does</span>
+<span class="s">            not fix the problem, check that your gffDB is formated correctly.</span>
+<span class="s">            &quot;&quot;&quot;</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span>
+
+        <span class="c"># Pull list of transcripts for that gene</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transOb</span> <span class="o">=</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">get_transcripts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gene</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transCnt</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_transOb</span><span class="p">)</span>
+
+        <span class="c"># Create dictionary where key is transcript id and values are</span>
+        <span class="c"># annotations for that transcript</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transcript</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ts</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transOb</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">transcript</span><span class="p">[</span><span class="n">ts</span><span class="o">.</span><span class="n">id</span><span class="p">][</span><span class="s">&#39;exons&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[(</span><span class="n">exon</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">exon</span><span class="o">.</span><span class="n">end</span><span class="p">)</span> <span class="k">for</span> <span class="n">exon</span> <span class="ow">in</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">get_exons</span><span class="p">(</span><span class="n">ts</span><span class="p">)]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">transcript</span><span class="p">[</span><span class="n">ts</span><span class="o">.</span><span class="n">id</span><span class="p">][</span><span class="s">&#39;introns&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[(</span><span class="n">intron</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">intron</span><span class="o">.</span><span class="n">end</span><span class="p">)</span> <span class="k">for</span> <span class="n">intron</span> <span class="ow">in</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">get_introns</span><span class="p">(</span><span class="n">ts</span><span class="p">)]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">transcript</span><span class="p">[</span><span class="n">ts</span><span class="o">.</span><span class="n">id</span><span class="p">][</span><span class="s">&#39;cds&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[(</span><span class="n">cds</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">cds</span><span class="o">.</span><span class="n">end</span><span class="p">)</span> <span class="k">for</span> <span class="n">cds</span> <span class="ow">in</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">get_cds</span><span class="p">(</span><span class="n">ts</span><span class="p">)]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">transcript</span><span class="p">[</span><span class="n">ts</span><span class="o">.</span><span class="n">id</span><span class="p">][</span><span class="s">&#39;utr&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">gffObject</span><span class="o">.</span><span class="n">get_coords</span><span class="p">(</span><span class="n">utr</span><span class="p">)</span> <span class="k">for</span> <span class="n">utr</span> <span class="ow">in</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">get_utrs</span><span class="p">(</span><span class="n">ts</span><span class="p">)]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">transcript</span><span class="p">[</span><span class="n">ts</span><span class="o">.</span><span class="n">id</span><span class="p">][</span><span class="s">&#39;tsStart&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">start</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">transcript</span><span class="p">[</span><span class="n">ts</span><span class="o">.</span><span class="n">id</span><span class="p">][</span><span class="s">&#39;tsEnd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">end</span>
+
+<div class="viewcode-block" id="FlyGene"><a class="viewcode-back" href="../../mclib.html#mclib.gff.FlyGene">[docs]</a><span class="k">class</span> <span class="nc">FlyGene</span><span class="p">(</span><span class="n">_Gene</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; A class to build a complete gene object with transcript and exon</span>
+<span class="sd">    information from the FlyGFF object </span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">    geneName (str) = a gene name</span>
+<span class="sd">    gffObject = a mclib gene object</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">    gene = geneName</span>
+<span class="sd">    db = gffObject</span>
+<span class="sd">    transID = List of transcript ids</span>
+<span class="sd">    transCnt = Number of transcripts</span>
+<span class="sd">    transcript = Dictionary of transcript IDs that contain the following:</span>
+<span class="sd">        exons = List of all exon coords (start, end).</span>
+<span class="sd">        cds = List of all coding sequence coords (start, end).</span>
+<span class="sd">        utr = List of UTR region coordinates [3&#39;UTR coords, 5&#39;UTR coords].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geneName</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">gffObject</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="c"># If a gene symbol was given look up the FBgn</span>
+        <span class="k">if</span> <span class="n">geneName</span> <span class="ow">in</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">symbol2fbgn</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">gffObject</span><span class="o">.</span><span class="n">symbol2fbgn</span><span class="p">[</span><span class="n">geneName</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">geneName</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">FlyGene</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">gffObject</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">McIntyre Library 0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Justin M Fear.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

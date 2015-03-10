@@ -1,0 +1,234 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mclib.bam &mdash; McIntyre Library 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="McIntyre Library 0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">McIntyre Library 0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for mclib.bam</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">os.path</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pysam</span>
+
+<span class="k">class</span> <span class="nc">Bam</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Basic wrapper for pysam module, to allow the quick pulling of pileups</span>
+<span class="sd">        for a certain region </span>
+
+<span class="sd">        Arguments:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filename = The full path to a sorted BAM file</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">        -----------</span>
+<span class="sd">        bam = a pysam Samfile object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># If there is not BAM index make it</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="s">&#39;.bai&#39;</span><span class="p">):</span>
+            <span class="n">pysam</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        
+        <span class="c"># Import BAM and pull pileups for a gene</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bam</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">Samfile</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_pileup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Create a dictionary where key is pos and value is count.</span>
+
+<span class="sd">        Arguments:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        chrom (str) = chromosome name.</span>
+<span class="sd">        start (int) = start location</span>
+<span class="sd">        end (int) = end location</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        --------</span>
+<span class="sd">        A dictionary where the key is the base position and the value is the</span>
+<span class="sd">        base count.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pileups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bam</span><span class="o">.</span><span class="n">pileup</span><span class="p">(</span><span class="n">chrom</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span>
+        <span class="n">pileDict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">base</span> <span class="ow">in</span> <span class="n">pileups</span><span class="p">:</span>
+            <span class="n">pileDict</span><span class="p">[</span><span class="n">base</span><span class="o">.</span><span class="n">pos</span><span class="p">]</span><span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">n</span>
+        <span class="k">return</span> <span class="n">pileDict</span>
+
+    <span class="k">def</span> <span class="nf">get_gene_read_count</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Get the number of reads that aligned to a particular regions.</span>
+<span class="sd">        Arguments:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        chrom (str) = chromosome name.</span>
+<span class="sd">        start (int) = start location</span>
+<span class="sd">        end (int) = end location</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        --------</span>
+<span class="sd">        An (int) with the number of reads overlapping the region.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">alnRead</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bam</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">chrom</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+            <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">count</span>
+
+    <span class="k">def</span> <span class="nf">calc_base_level_fudgeFactor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">normFactor</span><span class="o">=</span><span class="mi">10</span><span class="o">**</span><span class="mi">9</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; When comparing wiggle accross treatments, it is necessary to</span>
+<span class="sd">        normalize reads. If you look at </span>
+<span class="sd">        </span>
+<span class="sd">        RPKM = (# reads * 10^9) / (# total mapped reads * exon length)</span>
+
+<span class="sd">        In contrast to RPKM, I want to calculate a fudge factor to apply to</span>
+<span class="sd">        each base so I will the following:</span>
+<span class="sd">            (1) Use number of mapped bases instead of reads</span>
+<span class="sd">            (2) Remove the exon length</span>
+
+<span class="sd">        Arguments:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        normFactor = this is related to the 10^9 factor from RPKM</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        --------</span>
+<span class="sd">        A float with the global fudge factor 10^9 / sum(per base coverage)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">base_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">read</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bam</span><span class="o">.</span><span class="n">fetch</span><span class="p">():</span>
+            <span class="n">base_count</span> <span class="o">+=</span> <span class="n">read</span><span class="o">.</span><span class="n">inferred_length</span>
+
+        <span class="c"># Calculate the fudge factor similar to RPKM, but at the base level</span>
+        <span class="c"># instead of read level</span>
+        <span class="n">ff</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">normFactor</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">base_count</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ff</span>
+    
+<div class="viewcode-block" id="sum_pileups"><a class="viewcode-back" href="../../mclib.html#mclib.bam.sum_pileups">[docs]</a><span class="k">def</span> <span class="nf">sum_pileups</span><span class="p">(</span><span class="n">pileups</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Sum a list of pileup dictionaries</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pileups (list) = List of pileup dictionaries</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">    --------</span>
+<span class="sd">    A new dcitionary containing the sum for each base</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">combinedDict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">pileup</span> <span class="ow">in</span> <span class="n">pileups</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">pileup</span><span class="p">:</span>
+            <span class="n">combinedDict</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">+=</span> <span class="n">pileup</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">combinedDict</span>
+</div>
+<div class="viewcode-block" id="avg_pileups"><a class="viewcode-back" href="../../mclib.html#mclib.bam.avg_pileups">[docs]</a><span class="k">def</span> <span class="nf">avg_pileups</span><span class="p">(</span><span class="n">pileups</span><span class="p">,</span> <span class="n">fudgeFactor</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Average a list of pileup dictionaries</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pileups (list) = List of pileup dictionaries</span>
+<span class="sd">    fudgeFactor (bool) = do you want normalization or not</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">    --------</span>
+<span class="sd">    A new dcitionary containing the average coverage for each base</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">pileups</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">fudgeFactor</span><span class="p">:</span>
+        <span class="c"># Calculate the average fudge factor</span>
+        <span class="n">fList</span> <span class="o">=</span> <span class="p">[</span><span class="n">pileup</span><span class="o">.</span><span class="n">calc_base_level_fudgeFactor</span><span class="p">()</span> <span class="k">for</span> <span class="n">pileup</span> <span class="ow">in</span> <span class="n">pileups</span><span class="p">]</span>
+        <span class="n">ff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fList</span><span class="p">))</span>
+
+    <span class="n">combinedDict</span> <span class="o">=</span> <span class="n">sum_pileups</span><span class="p">(</span><span class="n">pileups</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">combinedDict</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">fudgeFactor</span><span class="p">:</span>
+                <span class="n">combinedDict</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">=</span> <span class="n">combinedDict</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">/</span> <span class="n">num</span> <span class="o">*</span> <span class="n">ff</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">combinedDict</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">=</span> <span class="n">combinedDict</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">/</span> <span class="n">num</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">combinedDict</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">print</span> <span class="s">&#39;There is something wrong with your pileup&#39;</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span>
+    <span class="k">return</span> <span class="n">combinedDict</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">McIntyre Library 0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Justin M Fear.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>
