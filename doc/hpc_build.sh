@@ -6,12 +6,14 @@
 # 
 #===============================================================================
 
-module load python/2.7.6
-SOURCE=/scratch/lfs/mcintyre/python.git/mclib/doc
-TARGET=/bio/mcintyre/mcpublic/mcpython/mclib
-
 # Only run this on the hpc
 if [[ $HOSTNAME == *ufhpc* ]]; then
+
+    module load python/2.7.6
+
+    SOURCE=/scratch/lfs/mcintyre/python.git/mclib/doc
+    TARGET=/bio/mcintyre/mcpublic/mcpython/mclib
+
 
     # Move to doc folder
     cd $SOURCE
@@ -37,4 +39,7 @@ if [[ $HOSTNAME == *ufhpc* ]]; then
 
     # Clean up build folder
     make clean
+
+else
+    echo "To run this script you need to be on the hpc."
 fi
