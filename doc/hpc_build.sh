@@ -10,10 +10,31 @@ module load python/2.7.6
 SOURCE=/scratch/lfs/mcintyre/python.git/mclib/doc
 TARGET=/bio/mcintyre/mcpublic/mcpython/mclib
 
-# Remove old version
-rm -r $TARGET
+# Only run this on the hpc
+if [[ $HOSTNAME == *ufhpc* ]]; then
 
-sphinx-build -E -b html $SOURCE $TARGET
+    # Move to doc folder
+    cd $SOURCE
 
-# Fix Permission
-chmod -R 775 $TARGET
+    # Prepare target folder
+    if [ ! -e $TARGET ]; then
+        mkdir -p $TARGET
+    else
+        rm -rf $TARGET/*
+    fi
+
+    # Make sure build folder is clean
+    make clean
+
+    # Build html docs
+    make html
+
+    # Move to public
+    rsync -av $SOURCE/_build/html $TARGET
+
+    find $TARGET -type d -exec chmod 775 {} \;
+    find $TARGET -type f -exec chmod 664 {} \;
+
+    # Clean up build folder
+    make clean
+fi
