@@ -11,7 +11,7 @@ if [[ $HOSTNAME == *ufhpc* ]]; then
 
     module load python/2.7.6
 
-    SOURCE=/scratch/lfs/mcintyre/python.git/mclib/doc
+    SOURCE=$(dirname $0)
     TARGET=/bio/mcintyre/mcpublic/mcpython/mclib
 
 
