@@ -5,7 +5,7 @@ Clone Git Repository
 --------------------
 
 1. Decide where you want to clone the McIntyre Library repository. For example
-   we will create a development folder in the users home folder.::
+   we will create a development folder in the user's home folder.::
 
       $ mkdir $HOME/devel
 
@@ -21,7 +21,7 @@ Setup Python Environment
 In order to use the contents of the McIntyre library, you need to tell python
 where these files are. To do this you need to set up a local environmental
 variable. On Linux there are several places you can create these variables. I
-would suggest adding the variable to a file in the users home directory called
+would suggest adding the variable to a file in the user's home directory called
 ``.profile``. 
 
 .. note::
@@ -29,7 +29,7 @@ would suggest adding the variable to a file in the users home directory called
 
 1. Open ``$HOME/.profile`` with your favorite text editor and add the following ::
 
-   export PYTHONPATH=$PYTHONPATH:$HOME/devel/mclib
+    export PYTHONPATH=$PYTHONPATH:$HOME/devel/mclib
 
 2. Now logout of your computer and log back in. 
 
