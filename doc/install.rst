@@ -29,7 +29,7 @@ would suggest adding the variable to a file in the user's home directory called
 
 1. Open ``$HOME/.profile`` with your favorite text editor and add the following ::
 
-    export PYTHONPATH=$PYTHONPATH:$HOME/devel/mclib
+    export PYTHONPATH=$PYTHONPATH:$HOME/devel
 
 2. Now logout of your computer and log back in. 
 
