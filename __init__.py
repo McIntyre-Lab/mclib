@@ -1,2 +1,2 @@
-from mclib import git
-from mclib import logger
+from mclib_Python import git
+from mclib_Python import logger
