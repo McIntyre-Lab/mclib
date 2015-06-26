@@ -21,7 +21,7 @@ def asList(x):
         raise ValueError('Could not convert {} to a list'.format(str(x)))
 
 
-def mergeAndDrop(df, flags, left_on, right_on, flagName, keep_in_list=None, keep_logic=None, drop_in_list=None, drop_logic=None, how='all'):
+def mergeAndDrop(df, flags, left_on, right_on, flagName, keep_in_list=None, keep_logic=None, drop_in_list=None, drop_logic=None, drop_when='all'):
     """ Merge on a set of flags and drop depending on a criteria.
 
     Arguments:
@@ -47,8 +47,8 @@ def mergeAndDrop(df, flags, left_on, right_on, flagName, keep_in_list=None, keep
         :param str drop_logic: A string with the logical opperator for which
             flags to drop. For example, ('== 0', '<= 1', '>= 10', '!= 2').
 
-        :type how: str|int
-        :param how: If 'all' then a row will be kept if all flags return
+        :type drop_when: str|int
+        :param drop_when: If 'all' then a row will be kept if all flags return
             True (keep) or False (drop). If 'any', a row will be kept if any of the
             flags were True (keep) or False (drop). If number between 1 and
             100, then this number will be used as a proportional cutoff. For
@@ -107,15 +107,15 @@ def mergeAndDrop(df, flags, left_on, right_on, flagName, keep_in_list=None, keep
         cleanMask = ~eval('merged[nameList] ' + drop_logic)
 
     # Return df with specific rows
-    if how == 'all':
+    if drop_when == 'all':
         return df[cleanMask.values.all(axis=1)]
-    elif how == 'any':
+    elif drop_when == 'any':
         return df[cleanMask.values.any(axis=1)]
-    elif how >= 1 and how <= 100:
+    elif drop_when >= 1 and drop_when <= 100:
         rowMargin = cleanMask.sum(axis=1)
         rowTotal = cleanMask.count(axis=1)
         rowProp = rowMargin / rowTotal * 100
-        propMask = rowProp >= how
+        propMask = rowProp >= drop_when
         return df[propMask.values]
     else:
         print '"how" must have a value of "all", "any", or an integer between 1 and 100'
