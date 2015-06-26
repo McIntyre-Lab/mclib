@@ -31,9 +31,9 @@ def mergeAndDrop(df, flags, left_on, right_on, flagName, keep_in_list=None, keep
         :type flags: pandas.DataFrame
         :param flags: A data frame of flags that you want to merge.
 
-        :param str left_on: Column name that you want to merge in your main data frame.
+        :param list left_on: Column(s) name that you want to merge in your main data frame.
 
-        :param str right_on: Column name that you want to merge in your flags data frame.
+        :param list right_on: Column(s) name that you want to merge in your flags data frame.
 
         :param list flagName: Column names with flags.
 
