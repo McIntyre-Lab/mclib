@@ -81,7 +81,7 @@ def mergeAndDrop(df, flags, left_on, right_on, flagName, keep_in_list=None, keep
 
     # Create Boolean Mask using keep|drop conditions
     if keep_in_list:
-        print "Keeping flags in given list."
+        print "Keeping when {} is in the given list.".format(flagName)
 
         # Make sure keep_in_list is a list
         flagList = asList(keep_in_list)
@@ -90,7 +90,7 @@ def mergeAndDrop(df, flags, left_on, right_on, flagName, keep_in_list=None, keep
         cleanMask = merged[nameList].isin(flagList)
 
     elif drop_in_list:
-        print "Dropping flags in given list."
+        print "Dropping when {} is in given list.".format(flagName)
 
         # Make sure keep_in_list is a list
         flagList = asList(drop_in_list)
@@ -99,11 +99,11 @@ def mergeAndDrop(df, flags, left_on, right_on, flagName, keep_in_list=None, keep
         cleanMask = ~merged[nameList].isin(flagList)
 
     elif keep_logic:
-        print "Keeping flags with {}.".format(keep_logic)
+        print "Keeping when {} {}.".format(flagName, keep_logic)
         cleanMask = eval('merged[nameList] ' + keep_logic)
 
     elif drop_logic:
-        print "Dropping flags with {}.".format(drop_logic)
+        print "Dropping when {} {}.".format(flagName, drop_logic)
         cleanMask = ~eval('merged[nameList] ' + drop_logic)
 
     # Return df with specific rows
